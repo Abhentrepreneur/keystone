@@ -9,102 +9,158 @@ import {
   type AdminMeta,
   type FieldViews
 } from '../types'
-import { useAdminMeta } from './utils/useAdminMeta'
+import { ApolloProvider, ApolloClient, InMemoryCache } from './apollo'
+import { useQuery } from './apollo'
 import {
-  type ApolloError,
-  type DocumentNode,
-  ApolloProvider,
-  ApolloClient,
-  InMemoryCache,
-} from './apollo'
-import {
-  type AuthenticatedItem,
-  type CreateViewFieldModes,
-  type VisibleLists,
-  useLazyMetadata,
-} from './utils/useLazyMetadata'
+  type AdminMetaQuery,
+  adminMetaQuery
+} from './admin-meta-graphql'
 
 type KeystoneContextType = {
-  adminConfig: AdminConfig
-  adminMeta:
-    | { state: 'loaded', value: AdminMeta }
-    | { state: 'error', error: ApolloError, refetch: () => Promise<void> }
+  adminConfig: AdminConfig | null
+  adminMeta: AdminMeta | null
+  apiPath: string | null
   fieldViews: FieldViews
-  authenticatedItem: AuthenticatedItem
-  visibleLists: VisibleLists
-  createViewFieldModes: CreateViewFieldModes
-  reinitContext: () => Promise<void>
-  apiPath: string
 }
 
-const KeystoneContext = createContext<KeystoneContextType | undefined>(undefined)
+const KeystoneContext = createContext<KeystoneContextType>({
+  adminConfig: null,
+  adminMeta: null,
+  apiPath: null,
+  fieldViews: {},
+})
 
 type KeystoneProviderProps = {
-  children: ReactNode
   adminConfig: AdminConfig
-  adminMetaHash: string
-  fieldViews: FieldViews
-  lazyMetadataQuery: DocumentNode
   apiPath: string
+  fieldViews: FieldViews
+  children: ReactNode
 }
+
+const expectedExports = new Set(['Cell', 'Field', 'controller', 'CardValue'])
 
 function InternalKeystoneProvider ({
   adminConfig,
   fieldViews,
-  adminMetaHash,
   children,
-  lazyMetadataQuery,
   apiPath,
 }: KeystoneProviderProps) {
-  const adminMeta = useAdminMeta(adminMetaHash, fieldViews)
-  const { authenticatedItem, visibleLists, createViewFieldModes, refetch } =
-    useLazyMetadata(lazyMetadataQuery)
-  const reinitContext = async () => {
-    await adminMeta?.refetch?.()
-    await refetch()
+  const { data, loading, error } = useQuery<AdminMetaQuery>(adminMetaQuery)
+  const lists = data?.keystone?.adminMeta?.lists
+
+  const meta = useMemo(() => {
+    if (!lists) return
+    if (error) return
+
+    const result: AdminMeta = {
+      lists: {},
+    }
+
+    for (const list of lists) {
+      result.lists[list.key] = {
+        ...list,
+        gqlNames: list.graphql.names,
+        groups: [],
+        fields: {},
+      }
+
+      for (const field of list.fields) {
+        for (const exportName of expectedExports) {
+          if ((fieldViews[field.viewsIndex] as any)[exportName] === undefined) {
+            throw new Error(`The view for the field at ${list.key}.${field.path} is missing the ${exportName} export`)
+          }
+        }
+
+        Object.keys(fieldViews[field.viewsIndex]).forEach(exportName => {
+          if (!expectedExports.has(exportName) && exportName !== 'allowedExportsOnCustomViews') {
+            throw new Error(`Unexpected export named ${exportName} from the view from the field at ${list.key}.${field.path}`)
+          }
+        })
+
+        const views = { ...fieldViews[field.viewsIndex] }
+        const customViews: Record<string, any> = {}
+        if (field.customViewsIndex !== null) {
+          const customViewsSource: FieldViews[number] & Record<string, any> = fieldViews[field.customViewsIndex]
+          const allowedExportsOnCustomViews = new Set(views.allowedExportsOnCustomViews)
+          Object.keys(customViewsSource).forEach(exportName => {
+            if (allowedExportsOnCustomViews.has(exportName)) {
+              customViews[exportName] = customViewsSource[exportName]
+            } else if (expectedExports.has(exportName)) {
+              (views as any)[exportName] = customViewsSource[exportName]
+            } else {
+              throw new Error(`Unexpected export named ${exportName} from the custom view from field at ${list.key}.${field.path}`)
+            }
+          })
+        }
+
+        result.lists[list.key].fields[field.path] = {
+          ...field,
+          createView: {
+            fieldMode: field.createView?.fieldMode ?? null,
+          },
+          itemView: {
+            fieldMode: field.itemView?.fieldMode ?? null,
+            fieldPosition: field.itemView?.fieldPosition ?? null,
+          },
+          listView: {
+            fieldMode: field.listView?.fieldMode ?? null,
+          },
+          graphql: {
+            isNonNull: field.isNonNull,
+          },
+          views,
+          controller: views.controller({
+            listKey: list.key,
+            fieldMeta: field.fieldMeta,
+            label: field.label,
+            description: field.description,
+            path: field.path,
+            customViews,
+          }),
+        }
+      }
+
+      for (const group of list.groups) {
+        result.lists[list.key].groups.push({
+          label: group.label,
+          description: group.description,
+          fields: group.fields.map(field => result.lists[list.key].fields[field.path]),
+        })
+      }
+    }
+
+    return result
+  }, [lists, error, fieldViews])
+
+  if (loading) {
+    return (<Center fillView>
+      <LoadingDots label='Loading Admin Metadata' size='large' />
+    </Center>)
   }
 
-  if (adminMeta.state === 'loading') {
-    return (
-      <Center fillView>
-        <LoadingDots label="Loading Admin Metadata" size="large" />
-      </Center>
-    )
-  }
-  return (
-    <ToastProvider>
-      <DrawerProvider>
-        <KeystoneContext.Provider
-          value={{
-            adminConfig,
-            adminMeta,
-            fieldViews,
-            authenticatedItem,
-            reinitContext,
-            visibleLists,
-            createViewFieldModes,
-            apiPath,
-          }}
-        >
-          {children}
-        </KeystoneContext.Provider>
-      </DrawerProvider>
-    </ToastProvider>
-  )
+  return (<ToastProvider>
+    <DrawerProvider>
+      <KeystoneContext.Provider value={{
+        adminConfig,
+        adminMeta: meta ?? null,
+        fieldViews,
+        apiPath,
+      }}>
+        {children}
+      </KeystoneContext.Provider>
+    </DrawerProvider>
+  </ToastProvider>)
 }
 
 export function KeystoneProvider (props: KeystoneProviderProps) {
-  const apolloClient = useMemo(
-    () =>
-      new ApolloClient({
-        cache: new InMemoryCache(),
-        link: createUploadLink({
-          uri: props.apiPath,
-          headers: { 'Apollo-Require-Preflight': 'true' },
-        }),
-      }),
-    [props.apiPath]
-  )
+  const apolloClient = useMemo(() => new ApolloClient({
+    cache: new InMemoryCache(),
+    uri: props.apiPath,
+    link: createUploadLink({
+      uri: props.apiPath,
+      headers: { 'Apollo-Require-Preflight': 'true' },
+    }),
+  }), [props.apiPath])
 
   return (
     <ApolloProvider client={apolloClient}>
@@ -113,46 +169,15 @@ export function KeystoneProvider (props: KeystoneProviderProps) {
   )
 }
 
-export function useKeystone (): {
-  adminConfig: AdminConfig
-  adminMeta: AdminMeta
-  authenticatedItem: AuthenticatedItem
-  visibleLists: VisibleLists
-  createViewFieldModes: CreateViewFieldModes
-  apiPath: string
-} {
-  const value = useContext(KeystoneContext)
-  if (!value) throw new Error('useKeystone must be called inside a KeystoneProvider component')
-  if (value.adminMeta.state === 'error') throw new Error('An error occurred when loading Admin Metadata')
-
-  return {
-    adminConfig: value.adminConfig,
-    adminMeta: value.adminMeta.value,
-    authenticatedItem: value.authenticatedItem,
-    visibleLists: value.visibleLists,
-    createViewFieldModes: value.createViewFieldModes,
-    apiPath: value.apiPath,
-  }
-}
-
-export function useReinitContext () {
-  const value = useContext(KeystoneContext)
-  if (value) return value.reinitContext
-  throw new Error('useReinitContext must be called inside a KeystoneProvider component')
-}
-
-export function useRawKeystone () {
-  const value = useContext(KeystoneContext)
-  if (value) return value
-  throw new Error('useRawKeystone must be called inside a KeystoneProvider component')
+export function useKeystone () {
+  return useContext(KeystoneContext)
 }
 
 export function useList (listKey: string) {
-  const {
-    adminMeta: { lists },
-  } = useKeystone()
-  const list = lists[listKey]
-  if (!list) throw new Error(`Unknown field ${listKey}`)
+  const { adminMeta } = useKeystone()
+  const { lists } = adminMeta ?? {}
+  const list = lists?.[listKey]
+  if (!list) throw new Error(`Unknown list ${listKey}`)
   return list
 }
 

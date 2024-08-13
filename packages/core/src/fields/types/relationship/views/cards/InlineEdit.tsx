@@ -7,13 +7,13 @@ import { useToasts } from '@keystone-ui/toast'
 import { useCallback, useState } from 'react'
 import { type ListMeta } from '../../../../../types'
 import {
-  deserializeValue,
+  type DataGetter,
   type ItemData,
+  deserializeValue,
   useInvalidFields,
   Fields,
   useChangedFieldsAndDataForUpdate,
   makeDataGetter,
-  type DataGetter,
 } from '../../../../../admin-ui/utils'
 import { gql, useMutation } from '../../../../../admin-ui/apollo'
 import { GraphQLErrorNotice } from '../../../../../admin-ui/components'

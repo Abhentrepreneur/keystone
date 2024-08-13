@@ -77,6 +77,13 @@ export function getBaseAuthSchema<I extends string, S extends string> ({
       }),
     },
     mutation: {
+      endSession: graphql.field({
+        type: graphql.nonNull(graphql.Boolean),
+        async resolve (rootVal, args, context) {
+          await context.sessionStrategy?.end({ context })
+          return true
+        },
+      }),
       [gqlNames.authenticateItemWithPassword]: graphql.field({
         type: AuthenticationResult,
         args: {

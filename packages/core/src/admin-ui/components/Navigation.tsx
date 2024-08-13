@@ -1,18 +1,24 @@
 /** @jsxRuntime classic */
 /** @jsx jsx */
 
-import { type AllHTMLAttributes, type ReactNode, Fragment } from 'react'
+import {
+  type AllHTMLAttributes,
+  type ReactNode,
+  Fragment
+} from 'react'
 import { useRouter } from 'next/router'
-import { Stack, jsx, useTheme, Text } from '@keystone-ui/core'
+import { Stack, jsx, useTheme } from '@keystone-ui/core'
 import { Button } from '@keystone-ui/button'
 import { Popover } from '@keystone-ui/popover'
 import { MoreHorizontalIcon } from '@keystone-ui/icons/icons/MoreHorizontalIcon'
 import { ChevronRightIcon } from '@keystone-ui/icons/icons/ChevronRightIcon'
-import { type NavigationProps, type ListMeta, type AuthenticatedItem } from '../../types'
+import type {
+  ListMeta,
+  NavigationProps
+} from '../../types'
 
 import { useKeystone } from '../context'
 import { Link } from '../router'
-import { SignoutButton } from './SignoutButton'
 
 type NavItemProps = {
   href: string
@@ -20,7 +26,7 @@ type NavItemProps = {
   isSelected?: boolean
 }
 
-export const NavItem = ({ href, children, isSelected: _isSelected }: NavItemProps) => {
+export function NavItem ({ href, children, isSelected: _isSelected }: NavItemProps) {
   const { colors, palette, spacing, radii, typography } = useTheme()
   const router = useRouter()
 
@@ -60,9 +66,10 @@ export const NavItem = ({ href, children, isSelected: _isSelected }: NavItemProp
   )
 }
 
-const AuthenticatedItemDialog = ({ item }: { item: AuthenticatedItem | undefined }) => {
+function ActionsMenu () {
   const { apiPath } = useKeystone()
-  const { spacing, typography } = useTheme()
+  const { spacing } = useTheme()
+
   return (
     <div
       css={{
@@ -74,51 +81,32 @@ const AuthenticatedItemDialog = ({ item }: { item: AuthenticatedItem | undefined
         marginBottom: 0,
       }}
     >
-      {item && item.state === 'authenticated' ? (
-        <div css={{ fontSize: typography.fontSize.small }}>
-          Signed in as <strong css={{ display: 'block' }}>{item.label}</strong>
-        </div>
-      ) : (
-        process.env.NODE_ENV !== 'production' && (
-          <div css={{ fontSize: typography.fontSize.small }}>GraphQL Playground and Docs</div>
-        )
-      )}
-
-      {process.env.NODE_ENV === 'production' ? (
-        item && item.state === 'authenticated' && <SignoutButton />
-      ) : (
+      {process.env.NODE_ENV !== 'production' ? (
         <Popover
-          placement="bottom"
+          placement='bottom'
           triggerRenderer={({ triggerProps }) => (
             <Button
-              size="small"
+              size='small'
               style={{ padding: 0, width: 36 }}
-              aria-label="Links and signout"
+              aria-label='Links and signout'
               {...triggerProps}
             >
               <MoreHorizontalIcon />
             </Button>
           )}
         >
-          <Stack gap="medium" padding="large" dividers="between">
-            <PopoverLink target="_blank" href={apiPath}>
-              API Explorer
-            </PopoverLink>
-            <PopoverLink target="_blank" href="https://github.com/keystonejs/keystone">
-              GitHub Repository
-            </PopoverLink>
-            <PopoverLink target="_blank" href="https://keystonejs.com">
-              Keystone Documentation
-            </PopoverLink>
-            {item && item.state === 'authenticated' && <SignoutButton />}
+          <Stack gap='medium' padding='large' dividers='between'>
+            <PopoverLink target='_blank' href={apiPath ?? undefined}>API Explorer</PopoverLink>
+            <PopoverLink target='_blank' href='https://github.com/keystonejs/keystone'>GitHub Repository</PopoverLink>
+            <PopoverLink target='_blank' href='https://keystonejs.com'>Keystone Documentation</PopoverLink>
           </Stack>
         </Popover>
-      )}
+      ) : null}
     </div>
   )
 }
 
-const PopoverLink = ({ children, ...props }: AllHTMLAttributes<HTMLAnchorElement>) => {
+function PopoverLink ({ children, ...props }: AllHTMLAttributes<HTMLAnchorElement>) {
   const { typography } = useTheme()
 
   return (
@@ -132,16 +120,14 @@ const PopoverLink = ({ children, ...props }: AllHTMLAttributes<HTMLAnchorElement
       {...props}
     >
       {children}
-      <ChevronRightIcon size="small" />
+      <ChevronRightIcon size='small' />
     </a>
   )
 }
 
-export type NavigationContainerProps = Partial<Pick<NavigationProps, 'authenticatedItem'>> & {
+export function NavigationContainer ({ children }: {
   children: ReactNode
-}
-
-export const NavigationContainer = ({ authenticatedItem, children }: NavigationContainerProps) => {
+}) {
   const { spacing } = useTheme()
   return (
     <div
@@ -152,8 +138,8 @@ export const NavigationContainer = ({ authenticatedItem, children }: NavigationC
         position: 'relative',
       }}
     >
-      <AuthenticatedItemDialog item={authenticatedItem} />
-      <nav role="navigation" aria-label="Side Navigation" css={{ marginTop: spacing.xlarge }}>
+      <ActionsMenu />
+      <nav role='navigation' aria-label='Side Navigation' css={{ marginTop: spacing.xlarge }}>
         <ul
           css={{
             padding: 0,
@@ -170,7 +156,7 @@ export const NavigationContainer = ({ authenticatedItem, children }: NavigationC
   )
 }
 
-export const ListNavItem = ({ list }: { list: ListMeta }) => {
+export function ListNavItem ({ list }: { list: ListMeta }) {
   const router = useRouter()
   return (
     <NavItem
@@ -184,7 +170,7 @@ export const ListNavItem = ({ list }: { list: ListMeta }) => {
 
 type NavItemsProps = Pick<NavigationProps, 'lists'> & { include?: string[] }
 
-export const ListNavItems = ({ lists = [], include = [] }: NavItemsProps) => {
+export function ListNavItems ({ lists = [], include = [] }: NavItemsProps) {
   const renderedList = include.length > 0 ? lists.filter(i => include.includes(i.key)) : lists
 
   return (
@@ -197,45 +183,15 @@ export const ListNavItems = ({ lists = [], include = [] }: NavItemsProps) => {
 }
 
 export function Navigation () {
-  const {
-    adminMeta: { lists },
-    adminConfig,
-    authenticatedItem,
-    visibleLists,
-  } = useKeystone()
+  const { adminMeta, adminConfig } = useKeystone()
+  const lists = Object.values(adminMeta?.lists ?? [])
+  const visibleLists = lists.filter(x => !x.hideNavigation)
 
-  if (visibleLists.state === 'loading') return null
-  // This visible lists error is critical and likely to result in a server restart
-  // if it happens, we'll show the error and not render the navigation component/s
-  if (visibleLists.state === 'error') {
-    return (
-      <Text as="span" paddingLeft="xlarge" css={{ color: 'red' }}>
-        {visibleLists.error instanceof Error
-          ? visibleLists.error.message
-          : visibleLists.error[0].message}
-      </Text>
-    )
-  }
-  const renderableLists = Object.keys(lists)
-    .map(key => {
-      if (!visibleLists.lists.has(key)) return null
-      return lists[key]
-    })
-    .filter((x): x is NonNullable<typeof x> => Boolean(x))
-
-  if (adminConfig?.components?.Navigation) {
-    return (
-      <adminConfig.components.Navigation
-        authenticatedItem={authenticatedItem}
-        lists={renderableLists}
-      />
-    )
-  }
-
+  if (adminConfig?.components?.Navigation) return <adminConfig.components.Navigation lists={visibleLists} />
   return (
-    <NavigationContainer authenticatedItem={authenticatedItem}>
-      <NavItem href="/">Dashboard</NavItem>
-      <ListNavItems lists={renderableLists} />
+    <NavigationContainer>
+      <NavItem href='/'>Dashboard</NavItem>
+      <ListNavItems lists={visibleLists} />
     </NavigationContainer>
   )
 }

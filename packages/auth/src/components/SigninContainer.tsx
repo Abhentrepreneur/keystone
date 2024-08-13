@@ -3,7 +3,12 @@
 
 import { type ReactNode } from 'react'
 
-import { jsx, Box, Center, useTheme } from '@keystone-ui/core'
+import {
+  jsx,
+  Box,
+  Center,
+  useTheme
+} from '@keystone-ui/core'
 import { Head } from '@keystone-6/core/admin-ui/router'
 
 type SigninContainerProps = {
@@ -11,7 +16,7 @@ type SigninContainerProps = {
   title?: string
 }
 
-export const SigninContainer = ({ children, title }: SigninContainerProps) => {
+export function SigninContainer ({ children, title }: SigninContainerProps) {
   const { colors, shadow } = useTheme()
   return (
     <div>

@@ -69,7 +69,7 @@ type CloudinaryImageValue =
 
 type CloudinaryImageController = FieldController<CloudinaryImageValue>
 
-export const controller = (config: FieldControllerConfig): CloudinaryImageController => {
+export function controller (config: FieldControllerConfig): CloudinaryImageController {
   return {
     path: config.path,
     label: config.label,

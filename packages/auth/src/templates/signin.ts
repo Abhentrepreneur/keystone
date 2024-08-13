@@ -1,6 +1,6 @@
 import { type AuthGqlNames } from '../types'
 
-export const signinTemplate = ({
+export default ({
   gqlNames,
   identityField,
   secretField,
@@ -12,13 +12,13 @@ export const signinTemplate = ({
   // -- TEMPLATE START
   return `import { getSigninPage } from '@keystone-6/auth/pages/SigninPage'
 
-export default getSigninPage(${JSON.stringify({
-    identityField: identityField,
-    secretField: secretField,
-    mutationName: gqlNames.authenticateItemWithPassword,
-    successTypename: gqlNames.ItemAuthenticationWithPasswordSuccess,
-    failureTypename: gqlNames.ItemAuthenticationWithPasswordFailure,
-  })});
+export default getSigninPage (${JSON.stringify({
+  identityField: identityField,
+  secretField: secretField,
+  mutationName: gqlNames.authenticateItemWithPassword,
+  successTypename: gqlNames.ItemAuthenticationWithPasswordSuccess,
+  failureTypename: gqlNames.ItemAuthenticationWithPasswordFailure,
+})})
 `
   // -- TEMPLATE END
 }

@@ -70,10 +70,13 @@ export type ListMetaRootVal = {
   initialSort: { field: string, direction: 'ASC' | 'DESC' } | null
   isSingleton: boolean
 
-  // TODO: probably remove this
-  itemQueryName: string
-  listQueryName: string
+  // TODO: remove in breaking change
+  itemQueryName: string /** @deprecated */
+  listQueryName: string /** @deprecated */
+  // TODO: remove in breaking change
+
   isHidden: ContextFunction<boolean>
+  hideNavigation: ContextFunction<boolean>
   hideCreate: ContextFunction<boolean>
   hideDelete: ContextFunction<boolean>
 }
@@ -82,7 +85,7 @@ export type AdminMetaRootVal = {
   lists: ListMetaRootVal[]
   listsByKey: Record<string, ListMetaRootVal>
   views: string[]
-  isAccessAllowed: undefined | ((context: KeystoneContext) => MaybePromise<boolean>)
+  isAccessAllowed: (context: KeystoneContext) => MaybePromise<boolean>
 }
 
 export function createAdminMeta (
@@ -162,13 +165,13 @@ export function createAdminMeta (
           | undefined) ?? null,
       isSingleton: list.isSingleton,
 
-      // TODO: probably remove this
-      itemQueryName: listKey,
-      listQueryName: list.graphql.namePlural, // TODO: remove
-
+      hideNavigation: normalizeMaybeSessionFunction(listConfig.ui?.isHidden ?? false),
       hideCreate: normalizeMaybeSessionFunction(listConfig.ui?.hideCreate ?? !list.graphql.isEnabled.create),
       hideDelete: normalizeMaybeSessionFunction(listConfig.ui?.hideDelete ?? !list.graphql.isEnabled.delete),
-      isHidden: normalizeMaybeSessionFunction(listConfig.ui?.isHidden ?? false),
+
+      itemQueryName: listKey, // TODO: remove in breaking change
+      listQueryName: list.graphql.namePlural, // TODO: remove in breaking change
+      isHidden: normalizeMaybeSessionFunction(listConfig.ui?.isHidden ?? false), // TODO: remove in breaking change
     }
 
     adminMetaRoot.lists.push(adminMetaRoot.listsByKey[listKey])

@@ -16,7 +16,7 @@ import {
   type ListMeta,
 } from '../../../../types'
 import { Link } from '../../../../admin-ui/router'
-import { useKeystone, useList } from '../../../../admin-ui/context'
+import { useList } from '../../../../admin-ui/context'
 import { gql, useQuery } from '../../../../admin-ui/apollo'
 import { CellContainer, CreateItemDrawer } from '../../../../admin-ui/components'
 
@@ -73,15 +73,14 @@ function LinkToRelatedItems ({
   )
 }
 
-export const Field = ({
+export function Field ({
   field,
   value,
   itemValue,
   autoFocus,
   onChange,
   forceValidation,
-}: FieldProps<typeof controller>) => {
-  const keystone = useKeystone()
+}: FieldProps<typeof controller>) {
   const foreignList = useList(field.refListKey)
   const localList = useList(field.listKey)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -119,8 +118,6 @@ export const Field = ({
       </Stack>
     )
   }
-
-  const authenticatedItem = keystone.authenticatedItem
 
   return (
     <FieldContainer as="fieldset">
@@ -175,36 +172,6 @@ export const Field = ({
                 Create related {foreignList.singular}
               </Button>
             )}
-            {onChange !== undefined &&
-              authenticatedItem.state === 'authenticated' &&
-              authenticatedItem.listKey === field.refListKey &&
-              (value.kind === 'many'
-                ? value.value.find(x => x.id === authenticatedItem.id) === undefined
-                : value.value?.id !== authenticatedItem.id) && (
-                <Button
-                  size="small"
-                  onClick={() => {
-                    const val = {
-                      label: authenticatedItem.label,
-                      id: authenticatedItem.id,
-                    }
-                    if (value.kind === 'many') {
-                      onChange({
-                        ...value,
-                        value: [...value.value, val],
-                      })
-                    } else {
-                      onChange({
-                        ...value,
-                        value: val,
-                      })
-                    }
-                  }}
-                >
-                  {value.kind === 'many' ? 'Add ' : 'Set as '}
-                  {authenticatedItem.label}
-                </Button>
-              )}
             {!!(value.kind === 'many'
               ? value.value.length
               : value.kind === 'one' && value.value) && (

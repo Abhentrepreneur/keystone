@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
 import { type FieldMeta, type ListMeta } from '../../../../../types'
-import { type DataGetter, makeDataGetter } from '../../../../../admin-ui/utils'
 import { gql, useQuery } from '../../../../../admin-ui/apollo'
 import { type controller } from '../index'
 
@@ -9,7 +8,7 @@ type ItemsState =
   | { kind: 'error', message: string }
   | { kind: 'loaded' }
 
-type Items = Record<string, DataGetter<{ id: string, [key: string]: any }>>
+type Items = Record<string, { id: string, [key: string]: any }>
 
 export function useItemState ({
   selectedFields,

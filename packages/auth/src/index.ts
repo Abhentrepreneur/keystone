@@ -10,8 +10,9 @@ import { password, timestamp } from '@keystone-6/core/fields'
 
 import type { AuthConfig, AuthGqlNames } from './types'
 import { getSchemaExtension } from './schema'
-import { signinTemplate } from './templates/signin'
-import { initTemplate } from './templates/init'
+import configTemplate from './templates/config'
+import signinTemplate from './templates/signin'
+import initTemplate from './templates/init'
 
 export type AuthSession = {
   listKey: string // TODO: use ListTypeInfo
@@ -105,6 +106,11 @@ export function createAuth<ListTypeInfo extends BaseListTypeInfo> ({
         mode: 'write',
         src: signinTemplate({ gqlNames, identityField, secretField }),
         outputPath: 'pages/signin.js',
+      },
+      {
+        mode: 'write',
+        src: configTemplate(),
+        outputPath: 'config.ts',
       },
     ]
     if (initFirstItem) {
